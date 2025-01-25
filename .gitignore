@@ -5,3 +5,4 @@ ollama/
 *.gguf
 *.ggml
 .idea/
+.env

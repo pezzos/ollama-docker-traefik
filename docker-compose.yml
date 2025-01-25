@@ -1,26 +1,7 @@
-version: '3.8'
 services:
-  app:
-    build: .
-    ports:
-      - 8000:8000
-      - 5678:5678
-    volumes:
-      - .:/code
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-    restart: always
-    depends_on:
-      - ollama
-      - ollama-webui
-    networks:
-      - ollama-docker
-
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - 7869:11434
     volumes:
-      - .:/code
       - ./ollama/ollama:/root/.ollama
     container_name: ollama
     pull_policy: always
@@ -29,8 +10,30 @@ services:
     environment:
       - OLLAMA_KEEP_ALIVE=24h
       - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_MAX_LOADED_MODELS=2
+      - OLLAMA_NUM_PARALLEL=2
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEMORY_LIMIT}
+          cpus: '${OLLAMA_CPU_LIMIT}'
+        reservations:
+          memory: ${OLLAMA_MEMORY_RESERVATION}
+          cpus: '${OLLAMA_CPU_RESERVATION}'
+    devices:
+      - /dev/dri:/dev/dri
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - ollama-docker
+      - proxy
+    labels:
+      - "traefik.docker.network=proxy"
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=Host(`ollama.${DOMAIN}`)"
+      - "traefik.http.routers.ollama.entrypoints=websecure"
+      - "traefik.http.routers.ollama.tls.certresolver=myresolver"
+      - "traefik.http.routers.ollama.tls=true"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
 
   ollama-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -39,22 +42,27 @@ services:
       - ./ollama/ollama-webui:/app/backend/data
     depends_on:
       - ollama
-    ports:
-      - 8080:8080
-    environment: # https://docs.openwebui.com/getting-started/env-configuration#default_models
-      - OLLAMA_BASE_URLS=http://host.docker.internal:7869 #comma separated ollama hosts
+    environment:
+      - OLLAMA_BASE_URLS=http://ollama:11434
       - ENV=dev
       - WEBUI_AUTH=False
-      - WEBUI_NAME=valiantlynx AI
-      - WEBUI_URL=http://localhost:8080
+      - WEBUI_NAME=${WEBUI_NAME}
+      - WEBUI_URL=https://chat.${DOMAIN}
       - WEBUI_SECRET_KEY=t0p-s3cr3t
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
     networks:
-      - ollama-docker
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.webui.rule=Host(`chat.${DOMAIN}`)"
+      - "traefik.http.routers.webui.entrypoints=websecure"
+      - "traefik.http.routers.webui.tls.certresolver=myresolver"
+      - "traefik.http.services.webui.loadbalancer.server.port=8080"
 
 networks:
-  ollama-docker:
-    external: false
-  
+  proxy:
+    external: true
+

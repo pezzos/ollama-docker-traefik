@@ -1,42 +1,33 @@
-# Ollama Docker Compose Setup
+# Ollama Docker Traefik Setup
 
-Welcome to the Ollama Docker Compose Setup! This project simplifies the deployment of Ollama using Docker Compose, making it easy to run Ollama with all its dependencies in a containerized environment.
-[![Star History Chart](https://api.star-history.com/svg?repos=valiantlynx/ollama-docker&type=Date)](https://star-history.com/#valiantlynx/ollama-docker&Date)
+This repository provides a Docker Compose setup for running Ollama with Traefik as a reverse proxy, making it accessible for Cursor AI integration.
 
 ## Getting Started
 
 ### Prerequisites
 Make sure you have the following prerequisites installed on your machine:
 
-- Docker
-- Docker Compose
+- Docker with Docker Compose
+- Traefik (configured as your reverse proxy)
+- Cursor IDE
 
-#### GPU Support (Optional)
+### Why you need Traefik for Cursor
 
-If you have a GPU and want to leverage its power within a Docker container, follow these steps to install the NVIDIA Container Toolkit:
+Traefik is essential in this setup for several reasons:
 
-```bash
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
-  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-sudo apt-get update
-sudo apt-get install -y nvidia-container-toolkit
+1. **Secure Access**: Traefik provides HTTPS termination, ensuring that all communications between Cursor and your Ollama instance are encrypted.
+2. **Domain Routing**: It allows you to expose Ollama through a custom domain, which is required for Cursor integration as the LLM should be accessible from the Cursor servers.
+3. **Authentication**: Traefik can handle authentication layers, adding security to your LLM endpoint.
+4. **Load Balancing**: If you scale your Ollama instances, Traefik can distribute the load effectively.
 
-# Configure NVIDIA Container Toolkit
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-
-# Test GPU integration
-docker run --gpus all nvidia/cuda:11.5.2-base-ubuntu20.04 nvidia-smi
-```
+Without Traefik, you would need to manually configure SSL certificates and routing, which can be complex and error-prone.
 
 ### Configuration
 
 1. Clone the Docker Compose repository:
 
     ```bash
-    git clone https://github.com/valiantlynx/ollama-docker.git
+    git clone https://github.com/pezzos/ollama-docker.git
     ```
 
 2. Change to the project directory:
@@ -45,34 +36,49 @@ docker run --gpus all nvidia/cuda:11.5.2-base-ubuntu20.04 nvidia-smi
     cd ollama-docker
     ```
 
+3. Configure your domain in the `.env` file:
+    ```bash
+    DOMAIN=your-domain.com
+    ```
+
 ## Usage
 
 Start Ollama and its dependencies using Docker Compose:
 
-if gpu is configured
-```bash
-docker-compose -f docker-compose-ollama-gpu.yaml up -d
-```
-
-else
 ```bash
 docker-compose up -d
 ```
 
-Visit [http://localhost:8080](http://localhost:8080) in your browser to access Ollama-webui.
+Visit [https://chat.<DOMAIN>](https://chat.<DOMAIN>) in your browser to access Ollama-webui.
 
 ### Model Installation
 
 Navigate to settings -> model and install a model (e.g., llava-phi3). This may take a couple of minutes, but afterward, you can use it just like ChatGPT.
 
-### Explore Langchain and Ollama
+## Use it in Cursor AI
 
-You can explore Langchain and Ollama within the project. A third container named **app** has been created for this purpose. Inside, you'll find some examples.
+### In OpenWeb UI
+1. Create an API key:
+   - Go to OpenWebui > settings > account > API key
+   - Create a new key if you don't have one
+   - Save this key securely
 
-### Devcontainer and Virtual Environment
+2. Add a model:
+   - Install the model you want to use (ex: deepseek-coder:1.3b)
+   - Wait for the installation to complete
+   - Verify the model is working in the web UI
 
-The **app** container serves as a devcontainer, allowing you to boot into it for experimentation. Additionally, the run.sh file contains code to set up a virtual environment if you prefer not to use Docker for your development environment.
-if you have vs code and the `Remote Development´ extension simply opening this project from the root will make vscode ask you to reopen in container
+### Then in Cursor:
+
+1. Open Cursor settings
+2. In the AI models section:
+   - Add the exact model name (case sensitive, ex: deepseek-coder:1.3b)
+   - Disable other models to ensure you're using the right one
+3. In the OpenAI configuration:
+   - Paste your OpenWebUI API key
+   - Add the API URL: https://chat.<DOMAIN>/api
+4. Test the connection by trying a simple prompt
+
 ## Stop and Cleanup
 
 To stop the containers and remove the network:
@@ -81,17 +87,29 @@ To stop the containers and remove the network:
 docker-compose down
 ```
 
+To completely remove all data (including models):
+```bash
+docker-compose down -v
+```
+
 ## Contributing
 
-We welcome contributions! If you'd like to contribute to the Ollama Docker Compose Setup, please follow our [Contribution Guidelines](CONTRIBUTING.md).
+We welcome contributions! If you'd like to contribute to the Ollama Docker Traefik Setup:
 
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+Please ensure your code follows our coding standards and includes appropriate documentation.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). Feel free to use, modify, and distribute it according to the terms of the license. Just give me a mention and some credit
+This project is licensed under the [MIT License](LICENSE). Feel free to use, modify, and distribute it according to the terms of the license. We appreciate attribution and mentions in derivative works.
 
-## Contact
+## Support
 
-If you have any questions or concerns, please contact us at [vantlynxz@gmail.com](mailto:vantlynxz@gmail.com).
-
-Enjoy using Ollama with Docker Compose! 🐳🚀
+If you encounter any issues or have questions:
+1. Check the existing issues on GitHub
+2. Create a new issue with detailed information about your problem
+3. Join our community discussions
